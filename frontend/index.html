@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Heatmap Tracker - Detection Pipeline</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+    <!-- Ionicons for modern icons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+  </head>
+  <body>
+    <!-- Animated background element -->
+    <div class="bg-mesh"></div>
+
+    <div class="app-container">
+      <header class="glass-panel main-header">
+        <div class="logo-container">
+          <div class="logo-icon">
+            <ion-icon name="scan-outline"></ion-icon>
+          </div>
+        </div>
+        <div class="status-container">
+          <div class="status-pill">
+            <div class="indicator pulse" id="conn-status"></div>
+            <span id="conn-text">System Standby</span>
+          </div>
+        </div>
+      </header>
+      
+      <main>
+        <div class="video-section">
+          <div class="video-container premium-glass">
+            <div class="video-wrapper">
+              <img id="video-stream" src="" alt="Neural stream inactive" />
+              
+              <!-- Floating Stats Overlay -->
+              <div class="overlay-stats">
+                <div class="stat-badge glass-badge">
+                  <ion-icon name="speedometer-outline" class="stat-icon"></ion-icon>
+                  <div class="stat-info">
+                    <span class="label">Processing</span>
+                    <span class="value"><span id="val-fps">0</span> FPS</span>
+                  </div>
+                </div>
+                
+                <div class="stat-badge glass-badge highlight">
+                  <ion-icon name="people-outline" class="stat-icon"></ion-icon>
+                  <div class="stat-info">
+                    <span class="label">Live Count</span>
+                    <span class="value" id="val-detections">0</span>
+                  </div>
+                </div>
+
+                <div class="stat-badge glass-badge">
+                  <ion-icon name="flash-outline" class="stat-icon"></ion-icon>
+                  <div class="stat-info">
+                    <span class="label">Latency</span>
+                    <span class="value" id="val-latency">0ms</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Scanline effect overlay -->
+              <div class="scanlines"></div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="control-panel premium-glass">
+          <div class="panel-header">
+            <h2><ion-icon name="options-outline"></ion-icon> Parameters</h2>
+            <div class="panel-line"></div>
+          </div>
+          
+          <div class="controls-wrapper">
+            <div class="control-group">
+              <label for="input-source">Data Source</label>
+              <div class="input-wrapper">
+                <ion-icon name="videocam-outline"></ion-icon>
+                <input type="text" id="input-source" placeholder="store_cctv.mp4" value="store_cctv.mp4">
+              </div>
+              
+              <label class="custom-checkbox">
+                <input type="checkbox" id="check-rtsp">
+                <span class="checkmark"></span>
+                <span class="checkbox-label">Live RTSP Protocol</span>
+              </label>
+            </div>
+
+            <div class="control-group">
+              <label for="select-model">Neural Engine (YOLOv8)</label>
+              <div class="select-wrapper">
+                <ion-icon name="hardware-chip-outline"></ion-icon>
+                <select id="select-model">
+                  <option value="n">Nano (Ultra-Fast)</option>
+                  <option value="s">Small (Balanced)</option>
+                  <option value="m">Medium (High Accuracy)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="control-group range-group">
+              <div class="range-header">
+                <label for="slider-conf">Confidence Threshold</label>
+                <span class="range-value glass-badge-small" id="val-conf">0.50</span>
+              </div>
+              <input type="range" id="slider-conf" min="0.1" max="1.0" step="0.05" value="0.5">
+            </div>
+            
+            <div class="control-group range-group">
+              <div class="range-header">
+                <label for="slider-fps">Downsample Rate</label>
+                <span class="range-value glass-badge-small" id="val-target-fps">10</span>
+              </div>
+              <input type="range" id="slider-fps" min="1" max="30" step="1" value="10">
+            </div>
+          </div>
+
+          <button id="btn-start" class="btn-glow">
+            <span class="btn-content">
+              <ion-icon name="play-outline"></ion-icon> Initialize Stream
+            </span>
+            <div class="btn-background"></div>
+          </button>
+
+        </aside>
+      </main>
+    </div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
