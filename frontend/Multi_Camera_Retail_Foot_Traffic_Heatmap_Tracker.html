@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Camera Retail Foot-Traffic Heatmap Tracker</title>
+    <!-- Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        /* === Enterprise Dark Theme Variables === */
+        :root {
+            --bg-main: #111827;        /* Gray 900 - Deep charcoal background */
+            --bg-card: #1f2937;        /* Gray 800 - Card background */
+            --bg-hover: #374151;       /* Gray 700 - Hover states */
+            --border-color: #374151;   /* Gray 700 - Borders */
+            --border-light: #4b5563;   /* Gray 600 - Lighter borders */
+            
+            --text-primary: #f9fafb;   /* Gray 50 - Main headings/values */
+            --text-secondary: #9ca3af; /* Gray 400 - Labels/subtext */
+            --text-muted: #6b7280;     /* Gray 500 - Deep subtext */
+            
+            --brand-primary: #3b82f6;  /* Blue 500 - Main accents/charts */
+            --brand-secondary: #6366f1;/* Indigo 500 - Secondary charts */
+            
+            --status-success: #10b981; /* Emerald 500 - Positive indicators */
+            --status-warning: #f59e0b; /* Amber 500 - Warnings */
+            --status-danger: #ef4444;  /* Red 500 - Critical alerts */
+            
+            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        /* === Base Reset & Typography === */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            padding: 32px 40px;
+            min-height: 100vh;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, h4 { font-weight: 600; color: var(--text-primary); }
+        
+        h2 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* === Layout Grid === */
+        .dashboard-layout {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 32px; 
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 28px; 
+        }
+
+        /* === Header === */
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg-card);
+            padding: 24px 32px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        .header-title-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .app-title { font-size: 22px; font-weight: 600; }
+        .app-subtitle { font-size: 14px; color: var(--text-secondary); }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: var(--bg-main);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            background-color: var(--status-success);
+            border-radius: 50%;
+        }
+
+        /* === Enterprise Card Component === */
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 28px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        /* === KPI Section === */
+        .kpi-row {
+            grid-column: span 12;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 28px;
+        }
+
+        .kpi-card {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding: 24px 28px;
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-secondary);
+        }
+
+        .kpi-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .kpi-icon {
+            color: var(--border-light);
+        }
+
+        .kpi-value-group {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+        }
+
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .kpi-trend {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .trend-up { color: var(--status-success); }
+        .trend-down { color: var(--status-warning); }
+
+        .kpi-description {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        /* === Heatmap Section === */
+        .heatmap-section { 
+            grid-column: span 12; 
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .heatmap-header-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .heatmap-header-wrapper h2 {
+            margin-bottom: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+            font-size: 16px;
+        }
+
+        .heatmap-legend {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .gradient-bar {
+            width: 150px;
+            height: 10px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #4c1d95, #db2777, #ea580c, #eab308); /* Purple -> Pink -> Orange -> Yellow */
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .heatmap-wrapper-relative {
+            position: relative;
+            width: 100%;
+            height: 600px; 
+            border: 1px solid var(--border-color);
+            background-color: #1e1b4b; /* Deep purple base for density empty state */
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .zone-label {
+            position: absolute;
+            color: rgba(255,255,255,0.9);
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            pointer-events: none;
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(4px);
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: 1px solid;
+            z-index: 20;
+        }
+
+        /* === Side Panels (Alerts & Cameras) === */
+        .middle-row {
+            grid-column: span 12;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 28px;
+        }
+
+        .alert-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .alert-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 16px 20px;
+            background-color: var(--bg-main);
+            border-left: 4px solid transparent;
+            border-radius: 0 6px 6px 0;
+            border-top: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .alert-item.critical { border-left-color: var(--status-danger); }
+        .alert-item.warning { border-left-color: var(--status-warning); }
+
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .alert-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .alert-time { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums;}
+        
+        .alert-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        .alert-zone { font-size: 13px; color: var(--text-secondary); }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-critical { background-color: rgba(239, 68, 68, 0.15); color: var(--status-danger); }
+        .badge-warning { background-color: rgba(245, 158, 11, 0.15); color: var(--status-warning); }
+
+        /* Cameras */
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .camera-item {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px 20px;
+            background-color: var(--bg-main);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        .cam-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .cam-name { font-size: 14px; font-weight: 600; }
+        .cam-status { font-size: 12px; font-weight: 500; color: var(--status-success); display: flex; align-items: center; gap: 6px;}
+        
+        .cam-stats { 
+            display: flex; 
+            justify-content: space-between;
+            font-size: 13px; 
+            color: var(--text-secondary); 
+        }
+        
+        .cam-stats-value {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* === Charts Row === */
+        .charts-row {
+            grid-column: span 12;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 28px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 320px;
+            width: 100%;
+        }
+
+        /* === Bottom Row (Table & Feed) === */
+        .bottom-row {
+            grid-column: span 12;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 28px;
+        }
+
+        /* Table Design */
+        .table-container { overflow-x: auto; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        th, td {
+            padding: 14px 20px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            background-color: var(--bg-main);
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: rgba(17, 24, 39, 0.4); 
+        }
+
+        tbody tr:hover {
+            background-color: var(--bg-hover);
+        }
+
+        .status-pill {
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .pill-success { background-color: rgba(16, 185, 129, 0.1); color: var(--status-success); }
+        .pill-neutral { background-color: rgba(59, 130, 246, 0.1); color: var(--brand-primary); }
+        .pill-warning { background-color: rgba(245, 158, 11, 0.1); color: var(--status-warning); }
+
+        /* Activity Feed */
+        .feed-container {
+            display: flex;
+            flex-direction: column;
+            height: 380px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .feed-container::-webkit-scrollbar { width: 6px; }
+        .feed-container::-webkit-scrollbar-track { background: var(--bg-main); }
+        .feed-container::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+        .timeline-item {
+            display: flex;
+            gap: 20px;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .timeline-time {
+            font-size: 13px;
+            color: var(--text-secondary);
+            min-width: 65px;
+            font-variant-numeric: tabular-nums;
+            font-weight: 500;
+        }
+
+        .timeline-content {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .timeline-text { font-size: 14px; color: var(--text-primary); font-weight: 500; }
+        .timeline-type { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;}
+
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-layout">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-title-group">
+                <div class="app-title">Multi-Camera Retail Foot-Traffic Heatmap Tracker</div>
+                <div class="app-subtitle">AI-Powered Retail Analytics Dashboard</div>
+            </div>
+            <div class="header-meta">
+                <div class="header-badge">
+                    <span class="status-dot"></span> System Active
+                </div>
+                <div class="header-badge">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> 
+                    4 Active Cameras
+                </div>
+                <div class="header-badge">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> 
+                    Last Updated: Live
+                </div>
+            </div>
+        </header>
+
+        <div class="main-grid">
+            
+            <!-- KPIs -->
+            <div class="kpi-row" id="kpiContainer">
+                <!-- Injected via JS -->
+            </div>
+
+            <!-- Heatmap Section -->
+            <div class="card heatmap-section">
+                <div class="heatmap-header-wrapper">
+                    <h2>Store Floor Foot-Traffic Smoothed Density Heatmap</h2>
+                    <div class="heatmap-legend">
+                        <span>Low Density</span>
+                        <div class="gradient-bar"></div>
+                        <span>High Density</span>
+                    </div>
+                </div>
+                
+                <div class="heatmap-wrapper-relative" id="heatmapWrapper">
+                    
+                    <!-- Placeholder image container for future foot_traffic_heatmap.png integration -->
+                    <!-- opacity: 0 by default. It will display if the image loads successfully -->
+                    <img id="footTrafficImage" src="foot_traffic_heatmap.png" alt="Heatmap Density Image" 
+                         style="position: absolute; width: 100%; height: 100%; object-fit: cover; top: 0; left: 0; opacity: 0; z-index: 1; transition: opacity 0.3s;"
+                         onload="this.style.opacity=1; document.getElementById('heatmapCanvasFallback').style.opacity=0;">
+                    
+                    <!-- Fallback canvas generating smooth density simulation if image is missing -->
+                    <canvas id="heatmapCanvasFallback" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; z-index: 2; transition: opacity 0.3s;"></canvas>
+
+                    <!-- Overlay canvas for 10x10 coordinate grid and zone drawings -->
+                    <canvas id="heatmapGridOverlay" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; z-index: 10; pointer-events: none;"></canvas>
+
+                    <!-- Zone Labels Overlay -->
+                    <div class="zone-label" style="top: 45%; left: 20%; color: #06b6d4; border-color: #06b6d4;">Aisle 1 Zone</div>
+                    <div class="zone-label" style="top: 25%; left: 80%; color: #10b981; border-color: #10b981;">Checkout Zone</div>
+                </div>
+            </div>
+
+            <!-- Alerts & Cameras -->
+            <div class="middle-row">
+                <div class="card">
+                    <h2>Active Bottleneck Alerts</h2>
+                    <div class="alert-list" id="alertsContainer">
+                        <!-- Injected via JS -->
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Camera Monitoring</h2>
+                    <div class="camera-grid" id="cameraContainer">
+                        <!-- Injected via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-row">
+                <div class="card">
+                    <h2>Customer Traffic Throughout The Day</h2>
+                    <div class="chart-container">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>Customer Traffic Distribution by Zone</h2>
+                    <div class="chart-container" style="display: flex; justify-content: center;">
+                        <canvas id="zoneChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table & Feed -->
+            <div class="bottom-row">
+                <div class="card table-container">
+                    <h2>Dwell Time Analysis</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Zone</th>
+                                <th>Visitor Count</th>
+                                <th>Avg Dwell Time</th>
+                                <th>Engagement Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dwellTableBody">
+                            <!-- Injected via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h2>Recent Activity Feed</h2>
+                    <div class="feed-container" id="feedContainer">
+                        <!-- Injected via JS -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        /**
+         * DASHBOARD_DATA: Centralized Architecture
+         */
+        const DASHBOARD_DATA = {
+            kpis: {
+                totalVisitors: 842,
+                peakTrafficZone: "Grocery",
+                avgDwellTime: "18m 45s",
+                activeAlerts: 2
+            },
+            
+            visitor_trend: {
+                labels: ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'],
+                data: [45, 120, 210, 280, 240, 310, 342, 320]
+            },
+            
+            zone_data: {
+                labels: ['Entrance', 'Electronics', 'Grocery', 'Snacks', 'Checkout', 'Apparel'],
+                data: [45, 120, 185, 80, 110, 95]
+            },
+            
+            dwell_time: [
+                { zone: "Grocery", count: 185, time: "22m 10s", status: "High Engagement" },
+                { zone: "Electronics", count: 120, time: "15m 30s", status: "Normal" },
+                { zone: "Apparel", count: 95, time: "18m 45s", status: "Normal" },
+                { zone: "Snacks", count: 80, time: "8m 15s", status: "Low Engagement" },
+                { zone: "Checkout", count: 110, time: "5m 45s", status: "Busy" },
+                { zone: "Entrance", count: 45, time: "2m 10s", status: "Pass-through" }
+            ],
+            
+            alerts: [
+                { severity: "Critical", time: "10:45", zone: "Checkout", message: "Checkout queue exceeds threshold" },
+                { severity: "Warning", time: "10:42", zone: "Entrance", message: "Entrance congestion detected" },
+                { severity: "Warning", time: "10:30", zone: "Electronics", message: "High density near promotional area" }
+            ],
+            
+            camera_data: [
+                { id: "Camera 1", name: "Entrance", status: "Online", tracks: 12, detections: 245 },
+                { id: "Camera 2", name: "Grocery", status: "Online", tracks: 45, detections: 890 },
+                { id: "Camera 3", name: "Checkout", status: "Online", tracks: 15, detections: 412 },
+                { id: "Camera 4", name: "Snacks", status: "Online", tracks: 20, detections: 315 }
+            ],
+            
+            activity_feed: [
+                { type: "System Alert", time: "10:45", text: "Checkout queue exceeds threshold" },
+                { type: "Anomaly", time: "10:42", text: "Entrance congestion detected" },
+                { type: "Alert", time: "10:30", text: "High density near promotional area (Electronics)" },
+                { type: "System Event", time: "10:15", text: "System calibrated across all tracking cameras" },
+                { type: "Module Update", time: "10:00", text: "DeepSORT Tracker re-initialized successfully" },
+                { type: "Analytics", time: "09:45", text: "Hourly analytics snapshot committed to database" },
+                { type: "Module Update", time: "09:30", text: "Homography matrix updated for Camera 2" }
+            ]
+        };
+
+        // --- Core UI Renders ---
+
+        function renderKPIs() {
+            const container = document.getElementById('kpiContainer');
+            const data = DASHBOARD_DATA.kpis;
+            
+            // SVG Icons
+            const svgUsers = `<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`;
+            const svgMap = `<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>`;
+            const svgClock = `<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
+            const svgAlert = `<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
+
+            container.innerHTML = `
+                <div class="card kpi-card">
+                    <div class="kpi-header"><span class="kpi-label">Total Visitors Today</span><span class="kpi-icon">${svgUsers}</span></div>
+                    <div class="kpi-value-group">
+                        <div class="kpi-value">${data.totalVisitors.toLocaleString()}</div>
+                    </div>
+                    <div class="kpi-description">Visitors detected across all active cameras</div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="kpi-header"><span class="kpi-label">Peak Traffic Zone</span><span class="kpi-icon">${svgMap}</span></div>
+                    <div class="kpi-value-group">
+                        <div class="kpi-value">${data.peakTrafficZone}</div>
+                    </div>
+                    <div class="kpi-description">Most visited retail zone</div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="kpi-header"><span class="kpi-label">Average Customer Dwell Time</span><span class="kpi-icon">${svgClock}</span></div>
+                    <div class="kpi-value-group">
+                        <div class="kpi-value">${data.avgDwellTime}</div>
+                    </div>
+                    <div class="kpi-description">Average customer engagement duration</div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="kpi-header"><span class="kpi-label">Active Bottleneck Alerts</span><span class="kpi-icon">${svgAlert}</span></div>
+                    <div class="kpi-value-group">
+                        <div class="kpi-value" style="color: var(--status-danger);">${data.activeAlerts}</div>
+                    </div>
+                    <div class="kpi-description">Current congestion notifications</div>
+                </div>
+            `;
+        }
+
+        /**
+         * Renders the smoothed heatmap density (fallback if image is missing) 
+         * and the 10m x 10m coordinate grid overlay with highlighted zones.
+         */
+        function renderHeatmapVisuals() {
+            const overlayCanvas = document.getElementById('heatmapGridOverlay');
+            const fallbackCanvas = document.getElementById('heatmapCanvasFallback');
+            const wrapper = document.getElementById('heatmapWrapper');
+            
+            const rect = wrapper.getBoundingClientRect();
+            const w = rect.width;
+            const h = rect.height;
+            
+            overlayCanvas.width = w; overlayCanvas.height = h;
+            fallbackCanvas.width = w; fallbackCanvas.height = h;
+            
+            const ctxOverlay = overlayCanvas.getContext('2d');
+            const ctxFallback = fallbackCanvas.getContext('2d');
+            
+            // 10m x 10m coordinate system mapping
+            const scaleX = w / 10;
+            const scaleY = h / 10;
+
+            // --- 1. Draw Fallback Smooth Density Heatmap ---
+            ctxFallback.fillStyle = '#1e1b4b'; // Deep purple baseline
+            ctxFallback.fillRect(0, 0, w, h);
+            
+            // Simulated foot-traffic hotspots
+            const hotspots = [
+                { x: 2, y: 4.5, r: 3.5, intensity: 0.9 }, // Aisle 1 hotspot
+                { x: 8, y: 2.5, r: 2.5, intensity: 0.95 }, // Checkout hotspot
+                { x: 5, y: 8, r: 4, intensity: 0.6 }, // Grocery ambient
+                { x: 2, y: 1.5, r: 2, intensity: 0.7 } // Entrance 
+            ];
+            
+            hotspots.forEach(spot => {
+                const cx = spot.x * scaleX;
+                const cy = spot.y * scaleY;
+                const radius = spot.r * Math.max(scaleX, scaleY);
+                
+                const grad = ctxFallback.createRadialGradient(cx, cy, 0, cx, cy, radius);
+                // Scientific color scale: Yellow (hot) -> Orange -> Pink -> Purple (cold)
+                grad.addColorStop(0, 'rgba(234, 179, 8, ' + spot.intensity + ')'); // Yellow center
+                grad.addColorStop(0.3, 'rgba(234, 88, 12, ' + (spot.intensity * 0.8) + ')'); // Orange
+                grad.addColorStop(0.6, 'rgba(219, 39, 119, ' + (spot.intensity * 0.5) + ')'); // Pink
+                grad.addColorStop(1, 'rgba(76, 29, 149, 0)'); // Transparent purple edge
+                
+                ctxFallback.fillStyle = grad;
+                ctxFallback.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+            });
+
+            // --- 2. Draw 10m x 10m Coordinate Grid Overlay ---
+            ctxOverlay.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctxOverlay.lineWidth = 1;
+            ctxOverlay.font = '11px Inter';
+            ctxOverlay.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            
+            for(let i=0; i<=10; i++) {
+                const x = i * scaleX;
+                const y = i * scaleY;
+                
+                // Vertical lines
+                ctxOverlay.beginPath(); ctxOverlay.moveTo(x, 0); ctxOverlay.lineTo(x, h); ctxOverlay.stroke();
+                // Horizontal lines
+                ctxOverlay.beginPath(); ctxOverlay.moveTo(0, y); ctxOverlay.lineTo(w, y); ctxOverlay.stroke();
+                
+                // Coordinate Labels
+                if(i > 0 && i < 10) {
+                    ctxOverlay.fillText(i + 'm', x + 4, 14); // X axis labels
+                    ctxOverlay.fillText(i + 'm', 4, y - 4);  // Y axis labels
+                }
+            }
+
+            // --- 3. Draw Highlighted Retail Zones ---
+            
+            // Aisle 1 Zone (x: 1 to 3, y: 1 to 8) - Cyan
+            ctxOverlay.strokeStyle = '#06b6d4'; // Cyan-500
+            ctxOverlay.lineWidth = 2;
+            ctxOverlay.setLineDash([6, 4]); // Dashed border for analytics feel
+            ctxOverlay.strokeRect(1 * scaleX, 1 * scaleY, 2 * scaleX, 7 * scaleY);
+            ctxOverlay.fillStyle = 'rgba(6, 182, 212, 0.1)';
+            ctxOverlay.fillRect(1 * scaleX, 1 * scaleY, 2 * scaleX, 7 * scaleY);
+            
+            // Checkout Zone (x: 7 to 9, y: 1 to 4) - Green
+            ctxOverlay.strokeStyle = '#10b981'; // Emerald-500
+            ctxOverlay.strokeRect(7 * scaleX, 1 * scaleY, 2 * scaleX, 3 * scaleY);
+            ctxOverlay.fillStyle = 'rgba(16, 185, 129, 0.1)';
+            ctxOverlay.fillRect(7 * scaleX, 1 * scaleY, 2 * scaleX, 3 * scaleY);
+            
+            ctxOverlay.setLineDash([]); // Reset dash
+        }
+
+        function renderAlerts() {
+            const container = document.getElementById('alertsContainer');
+            container.innerHTML = '';
+            
+            DASHBOARD_DATA.alerts.forEach(alert => {
+                const isCritical = alert.severity === 'Critical';
+                const itemClass = isCritical ? 'critical' : 'warning';
+                const badgeClass = isCritical ? 'badge-critical' : 'badge-warning';
+                
+                container.innerHTML += `
+                    <div class="alert-item ${itemClass}">
+                        <div class="alert-header">
+                            <span class="alert-title">${alert.message}</span>
+                            <span class="badge ${badgeClass}">${alert.severity}</span>
+                        </div>
+                        <div class="alert-meta">
+                            <span class="alert-zone">${alert.zone}</span>
+                            <span class="alert-time">${alert.time}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderCameras() {
+            const container = document.getElementById('cameraContainer');
+            container.innerHTML = '';
+            
+            DASHBOARD_DATA.camera_data.forEach(cam => {
+                container.innerHTML += `
+                    <div class="camera-item">
+                        <div class="cam-header">
+                            <span class="cam-name">${cam.id} – ${cam.name}</span>
+                            <span class="cam-status"><div class="status-dot" style="width:6px; height:6px;"></div> ${cam.status}</span>
+                        </div>
+                        <div class="cam-stats">
+                            <span>Active Tracks</span>
+                            <span class="cam-stats-value">${cam.tracks}</span>
+                        </div>
+                        <div class="cam-stats">
+                            <span>Detection Count</span>
+                            <span class="cam-stats-value">${cam.detections.toLocaleString()}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderDwellTable() {
+            const tbody = document.getElementById('dwellTableBody');
+            tbody.innerHTML = '';
+            
+            DASHBOARD_DATA.dwell_time.forEach(row => {
+                let statusClass = 'pill-neutral';
+                if(row.status === 'High Engagement') statusClass = 'pill-success';
+                if(row.status === 'Busy') statusClass = 'pill-warning';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight: 500; color: var(--text-primary);">${row.zone}</td>
+                        <td style="font-variant-numeric: tabular-nums;">${row.count}</td>
+                        <td style="font-variant-numeric: tabular-nums;">${row.time}</td>
+                        <td><span class="status-pill ${statusClass}">${row.status}</span></td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderActivityFeed() {
+            const container = document.getElementById('feedContainer');
+            container.innerHTML = '';
+            
+            DASHBOARD_DATA.activity_feed.forEach(item => {
+                container.innerHTML += `
+                    <div class="timeline-item">
+                        <div class="timeline-time">${item.time}</div>
+                        <div class="timeline-content">
+                            <div class="timeline-type">${item.type}</div>
+                            <div class="timeline-text">${item.text}</div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderCharts() {
+            Chart.defaults.color = '#9ca3af'; 
+            Chart.defaults.font.family = "'Inter', sans-serif";
+            Chart.defaults.font.size = 13;
+            Chart.defaults.plugins.tooltip.backgroundColor = '#1f2937';
+            Chart.defaults.plugins.tooltip.titleColor = '#f9fafb';
+            Chart.defaults.plugins.tooltip.bodyColor = '#f9fafb';
+            Chart.defaults.plugins.tooltip.borderColor = '#374151';
+            Chart.defaults.plugins.tooltip.borderWidth = 1;
+            Chart.defaults.plugins.tooltip.padding = 12;
+            
+            const ctxTrend = document.getElementById('trendChart').getContext('2d');
+            new Chart(ctxTrend, {
+                type: 'line',
+                data: {
+                    labels: DASHBOARD_DATA.visitor_trend.labels,
+                    datasets: [{
+                        label: 'Visitors',
+                        data: DASHBOARD_DATA.visitor_trend.data,
+                        borderColor: '#3b82f6', 
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)', 
+                        borderWidth: 2,
+                        tension: 0.1, 
+                        fill: true,
+                        pointBackgroundColor: '#1f2937',
+                        pointBorderColor: '#3b82f6',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#374151', drawBorder: false }, 
+                            border: { display: false }
+                        },
+                        x: {
+                            grid: { display: false },
+                            border: { display: false }
+                        }
+                    },
+                    interaction: { intersect: false, mode: 'index' }
+                }
+            });
+
+            const ctxZone = document.getElementById('zoneChart').getContext('2d');
+            new Chart(ctxZone, {
+                type: 'doughnut',
+                data: {
+                    labels: DASHBOARD_DATA.zone_data.labels,
+                    datasets: [{
+                        data: DASHBOARD_DATA.zone_data.data,
+                        backgroundColor: [
+                            '#3b82f6', 
+                            '#6366f1', 
+                            '#10b981', 
+                            '#f59e0b', 
+                            '#ef4444', 
+                            '#8b5cf6'  
+                        ],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: '#f9fafb',
+                                usePointStyle: true,
+                                boxWidth: 8,
+                                padding: 24,
+                                font: { size: 13 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderKPIs();
+            renderHeatmapVisuals(); // Updated drawing logic
+            renderAlerts();
+            renderCameras();
+            renderCharts();
+            renderDwellTable();
+            renderActivityFeed();
+            
+            // Re-render canvas elements on window resize to maintain coordinates
+            window.addEventListener('resize', renderHeatmapVisuals);
+        });
+    </script>
+</body>
+</html>
