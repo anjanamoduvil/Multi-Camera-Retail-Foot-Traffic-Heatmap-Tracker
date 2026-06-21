@@ -21,20 +21,65 @@ A high-performance, real-time tracking pipeline designed for retail environments
 * HTML5 / CSS3 (Vanilla, Glassmorphism UI)
 * JavaScript (WebSocket Client)
 * Vite (Bundler)
+* **Multi-Camera Detection:** Asynchronous, batched inference using **YOLOv8** to detect humans across multiple video streams without stuttering.
+* **Kalman Filter Tracking:** Integrates **DeepSORT** to maintain stable tracking IDs even when shoppers walk behind shelves or become occluded.
+* **Cross-Camera Re-Identification:** Features a custom `ReIDModule` that uses **MobileNet embeddings** (Cosine Similarity) and geometric plausibility to recognize when a shopper leaves Camera A and enters Camera B.
+* **Homography Mapping:** Converts 2D pixel coordinates from angled security cameras into accurate physical coordinates on a top-down floor plan.
+* **Spatial Analytics:** Automatically calculates Total Shoppers, Active Zones, and Average Dwell Times using polygon intersections.
+* **Cyber-Physical Dashboard:** A premium, low-latency Vanilla JavaScript dashboard powered by WebSockets to render live video, charts, and glowing heatmaps at 30 FPS.
 
-## 📦 Installation & Setup
+## 🛠 Tech Stack
 
-### 1. Clone the repository
+* **Backend / AI:** Python, PyTorch, Ultralytics YOLOv8, deep-sort-realtime, OpenCV, NumPy
+* **API & Data:** FastAPI, WebSockets, SQLite3 (Trajectory DB)
+* **Frontend:** HTML5, CSS3 (Glassmorphism), Vanilla JavaScript, Chart.js
+
+## 📁 Repository Structure
+
+```
+Multi-Camera-Retail-Foot-Traffic-Heatmap-Tracker/
+│
+├── backend/
+│   ├── main.py                # FastAPI server, WebSockets, and ReIDModule
+│   ├── detector.py            # YOLOv8 + DeepSORT inference engine
+│   ├── ingestion.py           # Asynchronous multi-camera stream processing
+│   ├── calibration_tool.py    # GUI for generating Homography matrices
+│   ├── train.py               # Scripts for YOLOv8 fine-tuning
+│   └── requirements.txt       # Python dependencies
+│
+├── frontend/
+│   ├── index.html             # The Cyber-Physical Dashboard UI
+│   ├── floor_plan.png         # Background image for the heatmap
+│   └── package.json           # Vite dev server configuration
+│
+└── README.md                  # Project documentation
+```
+
+## ⚙️ Installation & Setup
+
+1. **Clone the repository:**
 ```bash
 git clone https://github.com/anjanamoduvil/Multi-Camera-Retail-Foot-Traffic-Heatmap-Tracker.git
 cd Multi-Camera-Retail-Foot-Traffic-Heatmap-Tracker
 ```
 
-### 2. Backend Setup
-Navigate to the `backend` directory, install the required dependencies, and start the FastAPI server:
+2. **Install Backend Dependencies:**
 ```bash
 cd backend
 pip install -r requirements.txt
+```
+
+3. **Install Frontend Dependencies:**
+```bash
+cd ../frontend
+npm install
+```
+
+## 🚀 Running the System
+
+1. **Start the AI Backend Engine:**
+```bash
+cd backend
 python main.py
 ```
 *The backend will run on `http://0.0.0.0:8000`.*

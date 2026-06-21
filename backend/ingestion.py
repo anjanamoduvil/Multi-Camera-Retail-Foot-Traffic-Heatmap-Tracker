@@ -77,12 +77,17 @@ class VideoIngester:
             
             frame_idx += 1
             
-            # Simulated real-time playback for local files if needed, but usually 
-            # we let the queue backpressure handle it if not RTSP.
+            # Real-time synchronization
             if not self.is_rtsp:
-                # Sleep briefly if queue is full to avoid reading entire file into memory instantly
-                while self.frame_queue.full() and self.running:
-                    time.sleep(0.01)
+                # Sleep to match original video FPS
+                time.sleep(1.0 / self.fps)
+                
+                # If the AI queue is backing up, drop frames to stay in real-time
+                if self.frame_queue.full():
+                    try:
+                        self.frame_queue.get_nowait()
+                    except Empty:
+                        pass
 
     def get_frame(self, timeout=1.0):
         try:

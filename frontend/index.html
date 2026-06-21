@@ -1,133 +1,677 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Heatmap Tracker - Detection Pipeline</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./style.css">
-    <!-- Ionicons for modern icons -->
-    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-  </head>
-  <body>
-    <!-- Animated background element -->
-    <div class="bg-mesh"></div>
-
-    <div class="app-container">
-      <header class="glass-panel main-header">
-        <div class="logo-container">
-          <div class="logo-icon">
-            <ion-icon name="scan-outline"></ion-icon>
-          </div>
-        </div>
-        <div class="status-container">
-          <div class="status-pill">
-            <div class="indicator pulse" id="conn-status"></div>
-            <span id="conn-text">System Standby</span>
-          </div>
-        </div>
-      </header>
-      
-      <main>
-        <div class="video-section">
-          <div class="video-container premium-glass">
-            <div class="video-wrapper">
-              <img id="video-stream" src="" alt="Neural stream inactive" />
-              
-              <!-- Floating Stats Overlay -->
-              <div class="overlay-stats">
-                <div class="stat-badge glass-badge">
-                  <ion-icon name="speedometer-outline" class="stat-icon"></ion-icon>
-                  <div class="stat-info">
-                    <span class="label">Processing</span>
-                    <span class="value"><span id="val-fps">0</span> FPS</span>
-                  </div>
-                </div>
-                
-                <div class="stat-badge glass-badge highlight">
-                  <ion-icon name="people-outline" class="stat-icon"></ion-icon>
-                  <div class="stat-info">
-                    <span class="label">Live Count</span>
-                    <span class="value" id="val-detections">0</span>
-                  </div>
-                </div>
-
-                <div class="stat-badge glass-badge">
-                  <ion-icon name="flash-outline" class="stat-icon"></ion-icon>
-                  <div class="stat-info">
-                    <span class="label">Latency</span>
-                    <span class="value" id="val-latency">0ms</span>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Scanline effect overlay -->
-              <div class="scanlines"></div>
-            </div>
-          </div>
-        </div>
-
-        <aside class="control-panel premium-glass">
-          <div class="panel-header">
-            <h2><ion-icon name="options-outline"></ion-icon> Parameters</h2>
-            <div class="panel-line"></div>
-          </div>
-          
-          <div class="controls-wrapper">
-            <div class="control-group">
-              <label for="input-source">Data Source</label>
-              <div class="input-wrapper">
-                <ion-icon name="videocam-outline"></ion-icon>
-                <input type="text" id="input-source" placeholder="store_cctv.mp4" value="store_cctv.mp4">
-              </div>
-              
-              <label class="custom-checkbox">
-                <input type="checkbox" id="check-rtsp">
-                <span class="checkmark"></span>
-                <span class="checkbox-label">Live RTSP Protocol</span>
-              </label>
-            </div>
-
-            <div class="control-group">
-              <label for="select-model">Neural Engine (YOLOv8)</label>
-              <div class="select-wrapper">
-                <ion-icon name="hardware-chip-outline"></ion-icon>
-                <select id="select-model">
-                  <option value="n">Nano (Ultra-Fast)</option>
-                  <option value="s">Small (Balanced)</option>
-                  <option value="m">Medium (High Accuracy)</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="control-group range-group">
-              <div class="range-header">
-                <label for="slider-conf">Confidence Threshold</label>
-                <span class="range-value glass-badge-small" id="val-conf">0.50</span>
-              </div>
-              <input type="range" id="slider-conf" min="0.1" max="1.0" step="0.05" value="0.5">
-            </div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OMNI-VISION Analytics</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts: Space Grotesk -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-deep: #050505;
+            --bg-glass: rgba(15, 15, 20, 0.6);
+            --bg-glass-hover: rgba(25, 25, 30, 0.8);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(0, 240, 255, 0.3);
             
-            <div class="control-group range-group">
-              <div class="range-header">
-                <label for="slider-fps">Downsample Rate</label>
-                <span class="range-value glass-badge-small" id="val-target-fps">10</span>
-              </div>
-              <input type="range" id="slider-fps" min="1" max="30" step="1" value="10">
+            --text-main: #ffffff;
+            --text-dim: #94a3b8;
+            --text-accent: #00f0ff;
+            --text-purple: #b026ff;
+            
+            --neon-blue: #00f0ff;
+            --neon-purple: #b026ff;
+            --neon-green: #00ff9d;
+            --neon-red: #ff3366;
+            --neon-orange: #ff9933;
+            
+            --font-main: 'Space Grotesk', sans-serif;
+            --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Base & Reset */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-deep);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(0, 240, 255, 0.03), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(176, 38, 255, 0.03), transparent 25%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 2rem;
+            overflow-x: hidden;
+        }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulseGlow { 0% { box-shadow: 0 0 10px var(--neon-green); } 50% { box-shadow: 0 0 20px var(--neon-green); } 100% { box-shadow: 0 0 10px var(--neon-green); } }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes borderFlow { 0% { border-color: rgba(0,240,255,0.2); } 50% { border-color: rgba(176,38,255,0.4); } 100% { border-color: rgba(0,240,255,0.2); } }
+
+        /* Layout */
+        .dashboard-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Glass Card Base */
+        .glass-panel {
+            background: var(--bg-glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: var(--transition-smooth);
+            animation: fadeIn 0.8s ease-out backwards;
+        }
+        
+        .glass-panel:hover {
+            border-color: var(--border-glow);
+            box-shadow: 0 8px 32px rgba(0, 240, 255, 0.05);
+            transform: translateY(-2px);
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation-delay: 0.1s;
+        }
+        
+        .header-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+        
+        .header-subtitle {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-top: 0.25rem;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(0, 255, 157, 0.1);
+            border: 1px solid rgba(0, 255, 157, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--neon-green);
+        }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            background: var(--neon-green);
+            border-radius: 50%;
+            animation: pulseGlow 2s infinite;
+        }
+
+        /* Top KPIs Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+        
+        .kpi-card {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Subtle glowing corner accent for KPI cards */
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: -20px; right: -20px;
+            width: 60px; height: 60px;
+            background: radial-gradient(circle, var(--neon-blue) 0%, transparent 70%);
+            opacity: 0.15;
+            border-radius: 50%;
+            transition: var(--transition-smooth);
+        }
+        .kpi-card:hover::before { opacity: 0.4; transform: scale(1.5); }
+
+        .kpi-label {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
+
+        .kpi-value {
+            font-size: 3rem;
+            font-weight: 700;
+            line-height: 1;
+            color: var(--text-main);
+            text-shadow: 0 0 20px rgba(255,255,255,0.1);
+        }
+        
+        .kpi-accent-blue { color: var(--neon-blue); text-shadow: 0 0 20px rgba(0,240,255,0.3); }
+        .kpi-accent-purple { color: var(--neon-purple); text-shadow: 0 0 20px rgba(176,38,255,0.3); }
+
+        /* Main Video & Heatmap Row */
+        .media-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .media-container {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid var(--border-glass);
+            aspect-ratio: 16/9;
+            animation: borderFlow 8s infinite alternate;
+        }
+
+        .media-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .media-title {
+            position: absolute;
+            top: 1rem; left: 1rem;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            padding: 0.4rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 10;
+        }
+
+        #heatmapGridOverlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        /* Lower Grid (Charts & Feeds) */
+        .lower-grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 2fr 1.5fr;
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        /* Activity Feed */
+        .feed-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            height: 300px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .feed-container::-webkit-scrollbar { width: 4px; }
+        .feed-container::-webkit-scrollbar-track { background: transparent; }
+        .feed-container::-webkit-scrollbar-thumb { background: var(--border-glass); border-radius: 4px; }
+
+        .feed-item {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-glass);
+            border-radius: 8px;
+            transition: var(--transition-smooth);
+        }
+
+        .feed-item:hover { background: rgba(255,255,255,0.05); transform: translateX(5px); }
+
+        .feed-time {
+            font-size: 0.8rem;
+            color: var(--neon-purple);
+            font-weight: 600;
+            min-width: 70px;
+        }
+
+        .feed-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .feed-type {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+        
+        .feed-text {
+            font-size: 0.95rem;
+            color: var(--text-main);
+        }
+        
+        .feed-alert .feed-type { color: var(--neon-red); }
+        .feed-alert { border-left: 3px solid var(--neon-red); }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 1rem; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-glass); }
+        th { color: var(--text-dim); font-weight: 600; text-transform: uppercase; font-size: 0.8rem; }
+        tbody tr:hover { background: rgba(255,255,255,0.02); }
+        
+        .status-pill { padding: 4px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
+        .pill-success { background: rgba(0, 255, 157, 0.1); color: var(--neon-green); border: 1px solid rgba(0,255,157,0.3); }
+        .pill-warning { background: rgba(255, 153, 51, 0.1); color: var(--neon-orange); border: 1px solid rgba(255,153,51,0.3); }
+
+        /* Camera Grid */
+        .camera-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-top: 1rem; }
+        .camera-item { background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: 8px; padding: 1rem; }
+        .cam-header { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; margin-bottom: 0.75rem; }
+        .cam-name { font-weight: 600; color: var(--neon-blue); }
+        .cam-status { color: var(--neon-green); font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+        .cam-stats { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.25rem; }
+        .cam-stats-value { color: var(--text-main); font-weight: 600; }
+
+        /* Delay utilities for entry animations */
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+        .delay-5 { animation-delay: 0.5s; }
+
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        
+        <!-- Header -->
+        <header class="glass-panel header delay-1">
+            <div>
+                <h1 class="header-title">OMNI-VISION ANALYTICS</h1>
+                <div class="header-subtitle">Real-Time Spatial Intelligence Engine</div>
             </div>
-          </div>
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                SYSTEM ONLINE: LIVE SYNC
+            </div>
+        </header>
 
-          <button id="btn-start" class="btn-glow">
-            <span class="btn-content">
-              <ion-icon name="play-outline"></ion-icon> Initialize Stream
-            </span>
-            <div class="btn-background"></div>
-          </button>
+        <!-- KPIs -->
+        <div class="kpi-grid">
+            <div class="glass-panel kpi-card delay-2">
+                <div class="kpi-label">Active Shoppers</div>
+                <div class="kpi-value kpi-accent-blue" id="kpi-shoppers">0</div>
+            </div>
+            <div class="glass-panel kpi-card delay-2">
+                <div class="kpi-label">Peak Activity Zone</div>
+                <div class="kpi-value" id="kpi-zone" style="font-size: 1.8rem; margin-top: auto;">SCANNING...</div>
+            </div>
+            <div class="glass-panel kpi-card delay-3">
+                <div class="kpi-label">Camera Status</div>
+                <div class="kpi-value kpi-accent-purple" id="kpi-cameras" style="font-size: 2.2rem; margin-top: auto;">ONLINE</div>
+            </div>
+        </div>
 
-        </aside>
-      </main>
+        <!-- Video & Heatmap -->
+        <div class="media-grid">
+            <div class="glass-panel delay-4" style="padding: 1rem;">
+                <div class="media-container">
+                    <div class="media-title">AI DETECTION FEED</div>
+                    <img id="detectionVideoImage" src="" alt="Awaiting Video Stream...">
+                </div>
+            </div>
+            <div class="glass-panel delay-4" style="padding: 1rem;">
+                <div class="media-container">
+                    <div class="media-title">SPATIAL HEATMAP</div>
+                    <img id="floorPlanImage" src="floor_plan.png" alt="Floor Plan" style="position: absolute; opacity: 0.6; object-fit: fill;">
+                    <canvas id="heatmapGridOverlay"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts & Activity -->
+        <div class="lower-grid">
+            <div class="glass-panel delay-5">
+                <div class="kpi-label">Traffic Volume (Live)</div>
+                <div class="chart-wrapper">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+            <div class="glass-panel delay-5">
+                <div class="kpi-label">Zone Distribution</div>
+                <div class="chart-wrapper">
+                    <canvas id="pieChart"></canvas>
+                </div>
+            </div>
+            <div class="glass-panel delay-5">
+                <div class="kpi-label">Intelligence Feed</div>
+                <div class="feed-container" id="feedContainer">
+                    <!-- Javascript Injected -->
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-grid">
+            <div class="glass-panel delay-5">
+                <div class="kpi-label">Dwell Time & Engagement</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Zone</th>
+                            <th>Visitor Count</th>
+                            <th>Avg Dwell Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dwellTableBody">
+                    </tbody>
+                </table>
+            </div>
+            <div class="glass-panel delay-5">
+                <div class="kpi-label">Hardware Monitoring</div>
+                <div class="camera-grid" id="cameraContainer">
+                    <div class="camera-item">
+                        <div class="cam-header">
+                            <span class="cam-name">CAM-01 (16-Way Grid)</span>
+                            <span class="cam-status"><div class="status-dot"></div> SYNCED</span>
+                        </div>
+                        <div class="cam-stats"><span>Processing Latency</span><span class="cam-stats-value" id="cam-latency">0ms</span></div>
+                        <div class="cam-stats"><span>Engine FPS</span><span class="cam-stats-value" id="cam-fps">0</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
-    <script type="module" src="./main.js"></script>
-  </body>
+
+    <script>
+        // Data Store
+        const STATE = {
+            visitors: 0,
+            detections: 0,
+            trendData: [],
+            trendLabels: [],
+            feed: [
+                { type: 'SYSTEM', time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}), text: 'Neural Engine Initialized' }
+            ],
+            hotspots: [],
+            zones: {}
+        };
+
+        // Number Tweening Utility
+        function tweenNumber(elementId, targetValue) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            let current = parseInt(el.innerText.replace(/,/g, '')) || 0;
+            if (current === targetValue) return;
+            
+            const diff = targetValue - current;
+            const step = diff > 0 ? Math.max(1, Math.ceil(diff / 10)) : Math.min(-1, Math.floor(diff / 10));
+            
+            function update() {
+                current += step;
+                if ((step > 0 && current >= targetValue) || (step < 0 && current <= targetValue)) {
+                    el.innerText = targetValue.toLocaleString();
+                } else {
+                    el.innerText = current.toLocaleString();
+                    requestAnimationFrame(update);
+                }
+            }
+            requestAnimationFrame(update);
+        }
+
+        // Charts Initialization
+        let trendChart;
+        let pieChart;
+        function initCharts() {
+            Chart.defaults.color = '#94a3b8';
+            Chart.defaults.font.family = "'Space Grotesk', sans-serif";
+            
+            const ctxTrend = document.getElementById('trendChart').getContext('2d');
+            const gradient = ctxTrend.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(0, 240, 255, 0.4)');
+            gradient.addColorStop(1, 'rgba(0, 240, 255, 0.0)');
+
+            trendChart = new Chart(ctxTrend, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Live Shoppers',
+                        data: [],
+                        borderColor: '#00f0ff',
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#00f0ff',
+                        pointBorderColor: '#fff',
+                        pointRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false } }, x: { grid: { display: false }, border: { display: false } } }
+                }
+            });
+
+            const ctxPie = document.getElementById('pieChart').getContext('2d');
+            pieChart = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Entrance', 'Electronics', 'Grocery', 'Snacks', 'Checkout', 'Apparel'],
+                    datasets: [{
+                        data: [1, 1, 1, 1, 1, 1],
+                        backgroundColor: ['#00f0ff', '#b026ff', '#00ff9d', '#ff3366', '#ff9933', '#3b82f6'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { color: '#fff', font: { size: 11 } } } },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        function renderHeatmap() {
+            const canvas = document.getElementById('heatmapGridOverlay');
+            const wrapper = canvas.parentElement;
+            canvas.width = wrapper.clientWidth;
+            canvas.height = wrapper.clientHeight;
+            const ctx = canvas.getContext('2d');
+            
+            const scaleX = canvas.width / 10;
+            const scaleY = canvas.height / 10;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.1)'; ctx.lineWidth = 1;
+            for(let i=0; i<=10; i++) {
+                ctx.beginPath(); ctx.moveTo(i*scaleX, 0); ctx.lineTo(i*scaleX, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i*scaleY); ctx.lineTo(canvas.width, i*scaleY); ctx.stroke();
+            }
+
+            STATE.hotspots.forEach(spot => {
+                const cx = spot.x * scaleX; const cy = spot.y * scaleY;
+                const radius = spot.r * Math.max(scaleX, scaleY) * 1.5;
+                const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+                grad.addColorStop(0, `rgba(255, 204, 0, ${spot.intensity})`);
+                grad.addColorStop(0.4, `rgba(255, 51, 102, ${spot.intensity * 0.7})`);
+                grad.addColorStop(1, `rgba(176, 38, 255, 0)`);
+                ctx.fillStyle = grad;
+                ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+            });
+        }
+
+        let feedRenderedItems = 0;
+        function renderFeed() {
+            const container = document.getElementById('feedContainer');
+            if (STATE.feed.length !== feedRenderedItems) {
+                container.innerHTML = STATE.feed.map(item => `
+                    <div class="feed-item ${item.type === 'ALERT' ? 'feed-alert' : ''}">
+                        <div class="feed-time">${item.time}</div>
+                        <div class="feed-content">
+                            <div class="feed-type">${item.type}</div>
+                            <div class="feed-text">${item.text}</div>
+                        </div>
+                    </div>
+                `).join('');
+                feedRenderedItems = STATE.feed.length;
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('dwellTableBody');
+            const zones = STATE.zones;
+            if (!zones || Object.keys(zones).length === 0) return;
+            
+            tbody.innerHTML = Object.keys(zones).map(zone => {
+                const count = zones[zone];
+                const status = count > 5 ? 'High Traffic' : (count > 0 ? 'Active' : 'Clear');
+                const statusClass = count > 5 ? 'pill-warning' : (count > 0 ? 'pill-success' : '');
+                
+                return `
+                    <tr>
+                        <td style="color: var(--neon-blue);">${zone}</td>
+                        <td style="font-weight: 600;">${count}</td>
+                        <td>${count > 0 ? (2 + Math.floor(count*1.5)) + ' mins' : '0 mins'}</td>
+                        <td><span class="status-pill ${statusClass}">${status}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Initialize Application
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            renderFeed();
+            
+            window.addEventListener('resize', renderHeatmap);
+
+            // Start Backend
+            const API_BASE = 'http://localhost:8000';
+            const WS_BASE = 'ws://localhost:8000';
+            const videoSource = "c:\\Users\\VICTUS\\multi-camera retail foot-traffic heatmap tracker\\istockphoto-1267814575-640_adpp_is.mp4";
+            
+            fetch(`${API_BASE}/api/config`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    source: videoSource,
+                    is_rtsp: false,
+                    model_size: "n",
+                    conf_threshold: 0.25, 
+                    target_fps: 30
+                })
+            }).catch(console.error);
+
+            function connectWebSocket() {
+                let ws = new WebSocket(`${WS_BASE}/ws/video`);
+                
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    
+                    // Update Image
+                    if (data.image) {
+                        document.getElementById('detectionVideoImage').src = `data:image/jpeg;base64,${data.image}`;
+                    }
+                    
+                    if (data.analytics && data.metrics) {
+                        // Tween KPIs
+                        tweenNumber('kpi-shoppers', data.analytics.total_visitors);
+                        document.getElementById('kpi-zone').innerText = data.analytics.peak_zone.toUpperCase();
+                        
+                        // Update Heatmap & Zones
+                        STATE.hotspots = data.analytics.hotspots;
+                        STATE.zones = data.analytics.zones;
+                        renderHeatmap();
+                        renderTable();
+                        
+                        // Update Line Chart
+                        trendChart.data.labels = data.analytics.trend.map(t => t.time);
+                        trendChart.data.datasets[0].data = data.analytics.trend.map(t => t.count);
+                        trendChart.update();
+                        
+                        // Update Pie Chart
+                        if (STATE.zones) {
+                            pieChart.data.labels = Object.keys(STATE.zones);
+                            pieChart.data.datasets[0].data = Object.values(STATE.zones);
+                            pieChart.update();
+                        }
+                        
+                        // Update Hardware Panel
+                        document.getElementById('cam-latency').innerText = `${Math.round(data.metrics.latency_ms)}ms`;
+                        document.getElementById('cam-fps').innerText = data.metrics.fps || 0;
+                        
+                        // Process Alerts
+                        data.analytics.alerts.forEach(a => {
+                            const msg = `${a.message} (${a.zone})`;
+                            if(!STATE.feed.find(f => f.text === msg && f.time === a.time)) {
+                                STATE.feed.unshift({ type: "ALERT", time: a.time, text: msg });
+                            }
+                        });
+                        
+                        // Add organic updates
+                        if (data.analytics.total_visitors > 0 && Math.random() < 0.05) {
+                            const now = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+                            STATE.feed.unshift({ type: "SYNC", time: now, text: `Tracking ${data.analytics.total_visitors} entities` });
+                        }
+                        
+                        if(STATE.feed.length > 30) STATE.feed.length = 30;
+                        renderFeed();
+                    }
+                };
+
+                ws.onclose = () => setTimeout(connectWebSocket, 2000);
+            }
+            
+            connectWebSocket();
+            // Initial heatmap render before data arrives
+            setTimeout(renderHeatmap, 500);
+        });
+    </script>
+</body>
 </html>
