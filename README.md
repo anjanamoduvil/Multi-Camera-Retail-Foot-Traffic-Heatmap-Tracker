@@ -94,11 +94,25 @@ npm run dev
 *The frontend will be available at `http://localhost:5173`.*
 
 ## 💻 Usage
+
+### Launching the Pipeline
 1. Open the dashboard in your browser (`http://localhost:5173`).
 2. Enter the path to your video source(s) in the **Data Source** input field.
    * *For multi-camera batched inference, pass a comma-separated list of paths (e.g., `cam1.mp4, cam2.mp4`).*
 3. Adjust the **Neural Engine** parameters (Model size, Confidence threshold, Target FPS).
 4. Click **Initialize Stream** to launch the pipeline!
+
+### Utility Scripts (Backend)
+This repository includes several utilities in the `backend/` directory for advanced configuration and testing:
+
+* **`calibration_tool.py`**: A GUI tool to generate Homography matrices. Maps 2D camera pixel coordinates to a top-down floor plan by selecting 4 corresponding points on both images.
+  ```bash
+  python calibration_tool.py --camera_image snap.jpg --floor_plan floor.png --cam_id 0
+  ```
+* **`extract_frames.py`**: Extracts frames from CCTV footage at specified intervals, useful for creating custom datasets for YOLO fine-tuning.
+* **`train.py`**: A script to fine-tune the YOLOv8 model on custom datasets.
+* **`benchmark.py`**: Runs performance benchmarks on inference speeds.
+* **`multi_camera_demo.py`**: CLI script to test multi-camera batch processing and inference independently from the web dashboard.
 
 ## 🛣️ Project Roadmap
 This repository currently covers **Phase 1: Detection**. Future milestones will introduce:
